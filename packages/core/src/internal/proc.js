@@ -130,19 +130,20 @@ function forkQueue(mainTask, onAbort, cb) {
 }
 
 function createTaskIterator({ context, fn, args }) {
-  if (is.iterator(fn)) {
+  if (is.iterator(fn) /* you can fork another generator, which is the most case*/) {
     return fn
   }
 
   // catch synchronous failures; see #152 and #441
   let result, error
   try {
+    // or you fork normal function
     result = fn.apply(context, args)
   } catch (err) {
     error = err
   }
 
-  // i.e. a generator function returns an iterator
+  // i.e. a generator function returns an iterator  ==> compose case;
   if (is.iterator(result)) {
     return result
   }
@@ -156,12 +157,14 @@ function createTaskIterator({ context, fn, args }) {
     : makeIterator(
         (function() {
           let pc
+          //********************************************************* */
           const eff = { done: false, value: result }
+          //********************************************************* */
           const ret = value => ({ done: true, value })
           return arg => {
             if (!pc) {
               pc = true
-              return eff
+              return eff // fake a yield result
             } else {
               return ret(arg)
             }
@@ -170,7 +173,7 @@ function createTaskIterator({ context, fn, args }) {
       )
 }
 
-export default function proc(
+export default function proc/*process*/(
   iterator,
   stdChannel,
   dispatch = noop,
@@ -206,9 +209,10 @@ export default function proc(
     Creates a new task descriptor for this generator, We'll also create a main task
     to track the main flow (besides other forked tasks)
   **/
-  const task = newTask(parentEffectId, meta, iterator, cont)
-  const mainTask = { meta, cancel: cancelMain, isRunning: true }
+  const task = newTask/*new thread*/(parentEffectId, meta, iterator, cont)
+  const mainTask/*main thread, execute the main task, which is passd in iterator*/ = { meta, cancel: cancelMain, isRunning: true }
 
+  //build up a task queue for the current process
   const taskQueue = forkQueue(
     mainTask,
     function onAbort() {
@@ -259,7 +263,7 @@ export default function proc(
   // tracks the running status
   iterator._isRunning = true
 
-  // kicks up the generator
+  // kicks up the generator ==> this could be the root saga (for root task), or a forked saga generator
   next()
 
   // then return the task descriptor to the caller
@@ -577,10 +581,12 @@ export default function proc(
     const taskIterator = createTaskIterator({ context, fn, args })
     const meta = getIteratorMetaInfo(taskIterator, fn)
     try {
-      suspend()
-      //**********  build up a new task, same as the way main task was built, see channel::stdChannel*****************************
+      suspend() //semophor ++;
+      //**********  fork a process, and kick up the generator immediately (note that javascirpt is single threaded)*****************************
       const task = proc(
-        taskIterator,
+        
+        taskIterator,  // this can be 1. an iterator 2. a generator (compose generators) 3. a normal function (needs to build a faked iterator based on it)
+
         stdChannel,
         dispatch,
         getState,
@@ -594,9 +600,9 @@ export default function proc(
 
       if (detached) {
         cb(task)
-      } else {
+      } else { //attached 
         if (taskIterator._isRunning) {
-          taskQueue.addTask(task)
+          taskQueue.addTask(task) // insert the fork task into current taskQueue; for cancel purpose only
           cb(task)
         } else if (taskIterator._error) {
           taskQueue.abort(taskIterator._error)
@@ -605,7 +611,7 @@ export default function proc(
         }
       }
     } finally {
-      flush()
+      flush() //semaphore --; if (!semaphore) { task= queue.shift() && exec(task)}
     }
     // Fork effects are non cancellables
   }

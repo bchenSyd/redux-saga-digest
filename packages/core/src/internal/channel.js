@@ -218,7 +218,10 @@ export function stdChannel() {
       put(input)
       return
     }
-    asap(() => put(input))
+    
+    // scheduler task queue[] push; this is a different level task;
+    asap(   () => put(input)   )
+
   }
   return chan
 }
