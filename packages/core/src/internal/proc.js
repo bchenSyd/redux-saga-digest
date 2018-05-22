@@ -152,29 +152,29 @@ function createTaskIterator({ context, fn, args }) {
   // instead create a failed task. See #152 and #441
   return error
     ? makeIterator(() => {
-        throw error
-      })
+      throw error
+    })
     : makeIterator(
-        (function() {
-          let pc
-          //********************************************************* */
-          const eff = { done: false, value: result }
-          //********************************************************* */
-          const ret = value => ({ done: true, value })
-          return arg => {
-            if (!pc) {
-              pc = true
-              return eff // fake a yield result
-            } else {
-              return ret(arg)
-            }
+      (function () {
+        let pc
+        //********************************************************* */
+        const eff = { done: false, value: result }
+        //********************************************************* */
+        const ret = value => ({ done: true, value })
+        return arg => {
+          if (!pc) {
+            pc = true
+            return eff // fake a yield result
+          } else {
+            return ret(arg)
           }
-        })(),
-      )
+        }
+      })(),
+    )
 }
 
-export default function proc/*process*/(
-  iterator,
+export default function proc(
+  iterator, // Effect / Promise / Iterator --> Iterator
   stdChannel,
   dispatch = noop,
   getState = noop,
@@ -182,7 +182,7 @@ export default function proc/*process*/(
   options = {},
   parentEffectId = 0,
   meta,
-  cont,
+  cont/*continue*/, // callback, the rest of workflow;
 ) {
   const { sagaMonitor, logger, onError, middleware } = options
   const log = logger || _log
@@ -209,8 +209,8 @@ export default function proc/*process*/(
     Creates a new task descriptor for this generator, We'll also create a main task
     to track the main flow (besides other forked tasks)
   **/
-  const task = newTask/*new thread*/(parentEffectId, meta, iterator, cont)
-  const mainTask/*main thread, execute the main task, which is passd in iterator*/ = { meta, cancel: cancelMain, isRunning: true }
+  const task_descriptor = newTask(parentEffectId, meta, iterator, cont/*callback is here; can only be executed after taskQueue is cleared; blocking operation*/)
+  const mainTask = { meta, cancel: cancelMain, isRunning: true } // make sure taskQueue is not empty
 
   //build up a task queue for the current process
   const taskQueue = forkQueue(
@@ -264,10 +264,15 @@ export default function proc/*process*/(
   iterator._isRunning = true
 
   // kicks up the generator ==> this could be the root saga (for root task), or a forked saga generator
-  next()
+  //################################################################################################################
+            
+                  next() // dirver; genreator driver; main loop ; mainloop; bochen; driver main loop;
+
+  //################################################################################################################
+  
 
   // then return the task descriptor to the caller
-  return task
+  return task_descriptor;
 
   /**
     This is the generator driver
@@ -308,7 +313,7 @@ export default function proc/*process*/(
       } else {
 
 
-        result = iterator.next(arg) // cal yield and get an Effect, could be put/call/take whatever
+        result = iterator.next(arg) // this is NOT  blocking itself; becuase iterator.next immediately returns a promise;
 
 
       }
@@ -349,7 +354,7 @@ export default function proc/*process*/(
         cancelledTasks: cancelledDueToErrorTasks,
       })
 
-      if (!task.cont) {
+      if (!task_descriptor.cont) {
         if (result && result.sagaStack) {
           result.sagaStack = sagaStackToString(result.sagaStack)
         }
@@ -365,9 +370,9 @@ export default function proc/*process*/(
       iterator._isAborted = true
       iterator._deferredEnd && iterator._deferredEnd.reject(result)
     }
-    task.cont && task.cont(result, isErr)
-    task.joiners.forEach(j => j.cb(result, isErr))
-    task.joiners = null
+    task_descriptor.cont && task_descriptor.cont(result, isErr)
+    task_descriptor.joiners.forEach(j => j.cb(result, isErr))
+    task_descriptor.joiners = null
   }
 
   function runEffect(effect, effectId, currCb) {
@@ -390,33 +395,33 @@ export default function proc/*process*/(
     // prettier-ignore
     return (
       // Non declarative effect
-        is.promise(effect)  /*yield delay(1000)*/                     ? resolvePromise(effect, currCb)
-      : is.iterator(effect)                     ? resolveIterator(effect, effectId, meta, currCb)
+      is.promise(effect)  /*yield delay(1000)*/ ? resolvePromise(effect, currCb) //blocking
+        : is.iterator(effect) /*yield Generator()*/ ? resolveIterator(effect, effectId, meta, currCb) //blcoking
 
-      // declarative effects  created by Effect creators / Symbol(@@redux-saga/IO): true
-      : (data = asEffect.take(effect))          ? runTakeEffect(data, currCb)
-      : (data = asEffect.put(effect))           ? runPutEffect(data, currCb) //non-blocking;
-      : (data = asEffect.all(effect))           ? runAllEffect(data, effectId, currCb)
-      : (data = asEffect.race(effect))          ? runRaceEffect(data, effectId, currCb)
-      : (data = asEffect.call(effect))          ? runCallEffect(data, effectId, currCb) //blocking;
-      : (data = asEffect.cps(effect))           ? runCPSEffect(data, currCb)
-      : (data = asEffect.fork(effect))          ? runForkEffect(data, effectId, currCb)
-      : (data = asEffect.join(effect))          ? runJoinEffect(data, currCb)
-      : (data = asEffect.cancel(effect))        ? runCancelEffect(data, currCb)
-      : (data = asEffect.select(effect))        ? runSelectEffect(data, currCb)
-      : (data = asEffect.actionChannel(effect)) ? runChannelEffect(data, currCb)
-      : (data = asEffect.flush(effect))         ? runFlushEffect(data, currCb)
-      : (data = asEffect.cancelled(effect))     ? runCancelledEffect(data, currCb)
-      : (data = asEffect.getConxt(effect))    ? runGetContextEffect(data, currCb)
-      : (data = asEffect.setContext(effect))    ? runSetContextEffect(data, currCb)
-      : /* anything else returned as is */        currCb(effect)
+          // declarative effects  created by Effect creators / Symbol(@@redux-saga/IO): true
+          : (data = asEffect.take(effect)) ? runTakeEffect(data, currCb)
+            : (data = asEffect.put(effect)) ? runPutEffect(data, currCb)           //non-blocking;
+              : (data = asEffect.all(effect)) ? runAllEffect(data, effectId, currCb)
+                : (data = asEffect.race(effect)) ? runRaceEffect(data, effectId, currCb)
+                  : (data = asEffect.call(effect)) ? runCallEffect(data, effectId, currCb) //blocking;
+                    : (data = asEffect.cps(effect)) ? runCPSEffect(data, currCb)
+                      : (data = asEffect.fork(effect)) ? runForkEffect(data, effectId, currCb)// non-blocking;
+                        : (data = asEffect.join(effect)) ? runJoinEffect(data, currCb)
+                          : (data = asEffect.cancel(effect)) ? runCancelEffect(data, currCb)
+                            : (data = asEffect.select(effect)) ? runSelectEffect(data, currCb)
+                              : (data = asEffect.actionChannel(effect)) ? runChannelEffect(data, currCb)
+                                : (data = asEffect.flush(effect)) ? runFlushEffect(data, currCb)
+                                  : (data = asEffect.cancelled(effect)) ? runCancelledEffect(data, currCb)
+                                    : (data = asEffect.getConxt(effect)) ? runGetContextEffect(data, currCb)
+                                      : (data = asEffect.setContext(effect)) ? runSetContextEffect(data, currCb)
+                                        : /* anything else returned as is */        currCb(effect)
     )
   }
 
-  function digestEffect(effect /* this will be the yield result (Effect)*/, 
-                        parentEffectId, label = '', 
-                        cb /* this will be Generator.next()*/) {
-    
+  function digestEffect(effect /* this will be the yield result (Effect)*/,
+    parentEffectId, label = '',
+    cb /* this will be Generator.next()*/) {
+
     // *********************************************************
     // assign an auto-incremented id to the current digest;
     const effectId = nextEffectId()
@@ -493,6 +498,8 @@ export default function proc/*process*/(
     } else if (is.func(promise.abort)) {
       cb.cancel = () => promise.abort()
     }
+
+    // callback is put inside 'then', so it's blocking;
     promise.then(cb, error => cb(error, true))
   }
 
@@ -513,7 +520,8 @@ export default function proc/*process*/(
       cb(input)
     }
     try {
-      channel.take(takeCb, is.notUndef(pattern) ? matcher(pattern) : null)
+      channel.take(takeCb /*cb is wrapped into takeCb, which is inside a Promise.then, so it's blocking*/,
+        is.notUndef(pattern) ? matcher(pattern) : null)
     } catch (err) {
       cb(err, true)
       return
@@ -546,6 +554,7 @@ export default function proc/*process*/(
     // Put effects are non cancellables
   }
 
+  // why is ::call blocking Effect?
   function runCallEffect({ context, fn, args }, effectId, cb) {
     let result
     // catch synchronous failures; see #152
@@ -556,7 +565,7 @@ export default function proc/*process*/(
       return
     }
     return is.promise(result)
-      ? resolvePromise(result, cb)
+      ? resolvePromise(result, cb) // cb is **potentially** put inside a promise.then; so it's a blocking effect
       : is.iterator(result) ? resolveIterator(result, effectId, getMetaInfo(fn), cb) : cb(result)
   }
 
@@ -577,14 +586,15 @@ export default function proc/*process*/(
     }
   }
 
+  //bochen: it's all about `fn` and `cb` execution paradiagm , i.e. is `cb` put inside a then??
   function runForkEffect( /*effect POJO*/{ context, fn /* this is fork function */, args, detached }, effectId, cb) {
     const taskIterator = createTaskIterator({ context, fn, args })
     const meta = getIteratorMetaInfo(taskIterator, fn)
     try {
-      suspend() //semophor ++;
+      suspend() //semophor++;
       //**********  fork a process, and kick up the generator immediately (note that javascirpt is single threaded)*****************************
       const task = proc(
-        
+
         taskIterator,  // this can be 1. an iterator 2. a generator (compose generators) 3. a normal function (needs to build a faked iterator based on it)
 
         stdChannel,
@@ -599,7 +609,7 @@ export default function proc/*process*/(
       //**************************************************************************************************************************
 
       if (detached) {
-        cb(task)
+        cb(task)                        // immeidately called 'cb' , so it's non-blocking;
       } else { //attached 
         if (taskIterator._isRunning) {
           taskQueue.addTask(task) // insert the fork task into current taskQueue; for cancel purpose only
@@ -607,7 +617,7 @@ export default function proc/*process*/(
         } else if (taskIterator._error) {
           taskQueue.abort(taskIterator._error)
         } else {
-          cb(task)
+          cb(task)                  // immeidately called 'cb' , so it's non-blocking;
         }
       }
     } finally {
@@ -618,7 +628,7 @@ export default function proc/*process*/(
 
   function runJoinEffect(t, cb) {
     if (t.isRunning()) {
-      const joiner = { task, cb }
+      const joiner = { task_descriptor, cb }
       cb.cancel = () => remove(t.joiners, joiner)
       t.joiners.push(joiner)
     } else {
@@ -628,7 +638,7 @@ export default function proc/*process*/(
 
   function runCancelEffect(taskToCancel, cb) {
     if (taskToCancel === SELF_CANCELLATION) {
-      taskToCancel = task
+      taskToCancel = task_descriptor
     }
     if (taskToCancel.isRunning()) {
       taskToCancel.cancel()
@@ -768,7 +778,7 @@ export default function proc/*process*/(
     cb()
   }
 
-  function newTask(id, meta, iterator, cont) {
+  function newTask(id, meta, iterator, cont/*continue*/) {
     iterator._deferredEnd = null
     return {
       [TASK]: true,

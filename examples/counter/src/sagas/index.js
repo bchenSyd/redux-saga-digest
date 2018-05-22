@@ -4,6 +4,12 @@ import { put, call, fork, takeEvery, delay } from 'redux-saga/effects'
 import { debug } from 'util';
 
 function* test() {
+  yield new Promise(resolve=>{ setTimeout(() => {
+    resolve(true);
+  }, 2000);});
+
+  yield delay(1000);
+
   yield call(() => {
     console.log("I'm forked");
   })
@@ -12,15 +18,15 @@ function* test() {
 
 export function* incrementAsync() {
   
-  yield Promise.resolve(1);
   
-  debugger;
-  yield delay(1000); // {CALL: { fn: delay }, Symbol(@@redux-saga/IO): true}
+  yield fork(test);
+
+  console.log('calling 1 is done')
+  
 
   yield* test(); // translated to effects.call
 
-  yield put({ type: 'INCREMENT' })
-
+  console.log('calling 2 is done')
 }
 
 export default function* rootSaga() {
