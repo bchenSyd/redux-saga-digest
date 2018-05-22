@@ -106,9 +106,7 @@ function getFnCallDesc(meth, fn, args) {
   return { context, fn, args }
 }
 
-export function call(fn, ...args) {
-  return effect(CALL, getFnCallDesc('call', fn, args))
-}
+
 
 export function apply(context, fn, args = []) {
   return effect(CALL, getFnCallDesc('apply', { context, fn }, args))
@@ -118,9 +116,22 @@ export function cps(fn, ...args) {
   return effect(CPS, getFnCallDesc('cps', fn, args))
 }
 
+
+//#############################################################
+// bochen: you can only fork a function
 export function fork(fn, ...args) {
-  return effect(FORK, getFnCallDesc('fork', fn, args))
+  return effect(FORK, getFnCallDesc/*payload*/('fork', fn, args)); // fork return a POJO
 }
+//#############################################################
+
+export function call(fn, ...args) {
+  return effect(CALL, getFnCallDesc('call', fn, args))
+}
+export const delay = call.bind(null, delayUtil) // call.bind still returns call function (with predefined arguments)
+// delay(1000) => call(null, delayUtil, 1000) => returns effect(CALL, getFnCall('call', delayUtils, 1000))
+
+
+//#############################################################
 
 export function spawn(fn, ...args) {
   return detach(fork(fn, ...args))
@@ -228,7 +239,7 @@ export function retry(maxTries, delayLength, worker, ...args) {
   return call(retryHelper, maxTries, delayLength, worker, ...args)
 }
 
-export const delay = call.bind(null, delayUtil)
+
 
 const createAsEffectType = type => effect => effect && effect[IO] && effect[type]
 

@@ -143,7 +143,7 @@ function createTaskIterator({ context, fn, args }) {
     error = err
   }
 
-  // i.e. a generator function returns an iterator  ==> compose case;
+  // i.e. yield(function* another_generator(){ yield something} )
   if (is.iterator(result)) {
     return result
   }
@@ -390,10 +390,10 @@ export default function proc/*process*/(
     // prettier-ignore
     return (
       // Non declarative effect
-        is.promise(effect)                      ? resolvePromise(effect, currCb)
+        is.promise(effect)  /*yield delay(1000)*/                     ? resolvePromise(effect, currCb)
       : is.iterator(effect)                     ? resolveIterator(effect, effectId, meta, currCb)
 
-      // declarative effects
+      // declarative effects  created by Effect creators / Symbol(@@redux-saga/IO): true
       : (data = asEffect.take(effect))          ? runTakeEffect(data, currCb)
       : (data = asEffect.put(effect))           ? runPutEffect(data, currCb) //non-blocking;
       : (data = asEffect.all(effect))           ? runAllEffect(data, effectId, currCb)
@@ -577,7 +577,7 @@ export default function proc/*process*/(
     }
   }
 
-  function runForkEffect( /*effect POJO*/{ context, fn /* this is the task */, args, detached }, effectId, cb) {
+  function runForkEffect( /*effect POJO*/{ context, fn /* this is fork function */, args, detached }, effectId, cb) {
     const taskIterator = createTaskIterator({ context, fn, args })
     const meta = getIteratorMetaInfo(taskIterator, fn)
     try {
