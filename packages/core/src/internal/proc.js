@@ -265,11 +265,11 @@ export default function proc(
 
   // kicks up the generator ==> this could be the root saga (for root task), or a forked saga generator
   //################################################################################################################
-            
-                  next() // dirver; genreator driver; main loop ; mainloop; bochen; driver main loop;
+
+  next() // dirver; genreator driver; main loop ; mainloop; bochen; driver main loop;
 
   //################################################################################################################
-  
+
 
   // then return the task descriptor to the caller
   return task_descriptor;
@@ -323,13 +323,19 @@ export default function proc(
       // yield { done: true| false, value: ??? }
       if (!result.done) {
         // { done:  value:}
-        digestEffect(result.value /*effect POJO*/, parentEffectId, '', next)
+
+        // ###############################################################################################################################################
+        // depending on Effect POJO type, next() is either called immediately or placed inside a Promise.then();   
+        digestEffect(result.value /*effect POJO*/, parentEffectId, '', next /*cont , continue , the rest of work-flow*/);
+        // ###############################################################################################################################################
+
+
       } else {
         /**
           This Generator has ended, terminate the main task and notify the fork queue
         **/
         mainTask.isMainRunning = false
-        mainTask.cont && mainTask.cont(result.value)
+        mainTask.cont && mainTask.cont/*rest of workflow; contiue; next; */(result.value)
       }
     } catch (error) {
       if (mainTask.isCancelled) {
@@ -503,32 +509,7 @@ export default function proc(
     promise.then(cb, error => cb(error, true))
   }
 
-  function resolveIterator(iterator, effectId, meta, cb) {
-    proc(iterator, stdChannel, dispatch, getState, taskContext, options, effectId, meta, cb)
-  }
-
-  function runTakeEffect({ channel = stdChannel, pattern, maybe }, cb) {
-    const takeCb = input => {
-      if (input instanceof Error) {
-        cb(input, true)
-        return
-      }
-      if (isEnd(input) && !maybe) {
-        cb(CHANNEL_END)
-        return
-      }
-      cb(input)
-    }
-    try {
-      channel.take(takeCb /*cb is wrapped into takeCb, which is inside a Promise.then, so it's blocking*/,
-        is.notUndef(pattern) ? matcher(pattern) : null)
-    } catch (err) {
-      cb(err, true)
-      return
-    }
-    cb.cancel = takeCb.cancel
-  }
-
+ 
   function runPutEffect({ channel, action, resolve }, cb) {
     /**
       Schedule the put in case another saga is holding a lock.
@@ -586,13 +567,54 @@ export default function proc(
     }
   }
 
+  function resolveIterator(iterator, effectId, meta, cb /*contains the rest of workflow*/) {
+    
+    // you yield Generator(); to create a standalone, free standing main task; tag: saga tasks;
+    // this is a blocking operation, the new task is not added to current task's taskQueue, i.e. not a subtask of current task ( in most cases the root task)
+    // current workflow is blocked until the new task is terminated and returned;
+
+    proc(iterator/* the new task iterator*/,
+      stdChannel,
+      dispatch,
+      getState,
+      taskContext,
+      options,
+      effectId,
+      meta,
+      cb /*the rest workflow of current task*/
+    ); // returns a task
+  }
+
+  function runTakeEffect({ channel = stdChannel, pattern, maybe }, cb) {
+    const takeCb = input => {
+      if (input instanceof Error) {
+        cb(input, true)
+        return
+      }
+      if (isEnd(input) && !maybe) {
+        cb(CHANNEL_END)
+        return
+      }
+      cb(input)
+    }
+    try {
+      channel.take(takeCb /*cb is wrapped into takeCb, which is inside a Promise.then, so it's blocking*/,
+        is.notUndef(pattern) ? matcher(pattern) : null)
+    } catch (err) {
+      cb(err, true)
+      return
+    }
+    cb.cancel = takeCb.cancel
+  }
+
   //bochen: it's all about `fn` and `cb` execution paradiagm , i.e. is `cb` put inside a then??
   function runForkEffect( /*effect POJO*/{ context, fn /* this is fork function */, args, detached }, effectId, cb) {
     const taskIterator = createTaskIterator({ context, fn, args })
     const meta = getIteratorMetaInfo(taskIterator, fn)
     try {
       suspend() //semophor++;
-      //**********  fork a process, and kick up the generator immediately (note that javascirpt is single threaded)*****************************
+      // tag: saga task;
+      //**********  fork a sub task, and kick up the generator immediately (note that javascirpt is single threaded)*****************************
       const task = proc(
 
         taskIterator,  // this can be 1. an iterator 2. a generator (compose generators) 3. a normal function (needs to build a faked iterator based on it)
@@ -612,7 +634,7 @@ export default function proc(
         cb(task)                        // immeidately called 'cb' , so it's non-blocking;
       } else { //attached 
         if (taskIterator._isRunning) {
-          taskQueue.addTask(task) // insert the fork task into current taskQueue; for cancel purpose only
+          taskQueue.addTask(task) // the fored sub task is appended to current taskQueue; to make use the forked task won't be orphaned;
           cb(task)
         } else if (taskIterator._error) {
           taskQueue.abort(taskIterator._error)
