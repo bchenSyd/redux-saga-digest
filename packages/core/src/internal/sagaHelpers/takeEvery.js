@@ -17,7 +17,8 @@ export default function takeEvery(patternOrChannel, worker, ...args) {
       q2() {
         return action === END ?
           {nextState: qEnd} :
-          {nextState: 'q1', effect: yFork(action)}
+          {nextState: 'q1', 
+           effect: yFork(action)}
       },
     },
     'q1',

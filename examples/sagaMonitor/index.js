@@ -22,7 +22,7 @@ const globalScope = (
 )
 
 // `VERBOSE` can be made a setting configured from the outside.
-const VERBOSE = false
+const VERBOSE = true;
 
 function time() {
   if(typeof performance !== 'undefined' && performance.now) {
@@ -37,7 +37,7 @@ const rootEffects = []
 
 function effectTriggered(desc) {
   if (VERBOSE) {
-    console.log('Saga monitor: effectTriggered:', desc)
+    console.log('Saga monitor: digestEffect:', desc)
   }
   effectsById[desc.effectId] = Object.assign({},
     desc,
