@@ -597,9 +597,9 @@ export default function proc(
         return
       }
 
-      cb(        input /*the action object*/           )
+      cb(input /*the action object*/)
 
-      
+
     }
     try {
       channel.take(takeCb /*cb is wrapped into takeCb, which is essentially register_callback, waiting for event channel#put, 
@@ -614,7 +614,7 @@ export default function proc(
   }
 
   //bochen: it's all about `fn` and `cb` execution paradiagm , i.e. is `cb` put inside a then??
-  function runForkEffect( /*effect POJO*/{ context, fn /* this is fork function */, args, detached }, effectId, cb) {
+  function runForkEffect( /*effect POJO*/{ context, fn /* this is fork function */, args, detached }, effectId, cb/*function next(){...}*/) {
     const taskIterator = createTaskIterator({ context, fn, args })
     const meta = getIteratorMetaInfo(taskIterator, fn)
     try {
@@ -637,18 +637,24 @@ export default function proc(
       //**************************************************************************************************************************
 
       if (detached) {
-        cb(task)                        // immeidately called 'cb' , so it's non-blocking;
+        cb(task /*task is passed to left yield variable*/)                        // immeidately called 'cb' , so it's non-blocking;
       } else { //attached 
         if (taskIterator._isRunning) {
           taskQueue.addTask(task) // the fored sub task is appended to current taskQueue; to make use the forked task won't be orphaned;
-          cb(task)
+          cb(task/*task is passed to left yield variable*/)
         } else if (taskIterator._error) {
           taskQueue.abort(taskIterator._error)
         } else {
-          cb(task)                  // immeidately called 'cb' , so it's non-blocking;
+          cb(task/*task is passed to left yield variable*/)                  // immeidately called 'cb' , so it's non-blocking;
         }
       }
     } finally {
+      //____________________
+      // const task = yield |fork( delay(1000) ); //immediately return an effects and digest; 
+      //                     -----------------------------------------------------
+      // this is the cb(task/*task is the fork return result*/);
+
+      // console.log('hello'); // you have seen 'hello' before you call flush()
       flush() //semaphore --; if (!semaphore) { task= queue.shift() && exec(task)}
     }
     // Fork effects are non cancellables
