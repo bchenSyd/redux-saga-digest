@@ -19,12 +19,12 @@ function* test() {
 export function* incrementAsync() {
   
   
-  yield fork(test);
+  yield test();
 
   console.log('calling 1 is done')
   
 
-  yield* test(); // translated to effects.call
+  yield* test();
 
   console.log('calling 2 is done')
 }
