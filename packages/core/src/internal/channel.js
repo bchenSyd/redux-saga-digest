@@ -30,7 +30,7 @@ export function channel(buffer = buffers.expanding()) {
     }
   }
 
-  function put(input) {
+  function put(input /*middleware will pass action as input;  proc.js::runTakeEffect will call cb(input) , so input will be assigned to the left yield variable*/) {
     checkForbiddenStates()
 
     if (process.env.NODE_ENV === 'development') {

@@ -596,7 +596,10 @@ export default function proc(
         cb(CHANNEL_END)
         return
       }
-      cb(input)
+
+      cb(        input /*the action object*/           )
+
+      
     }
     try {
       channel.take(takeCb /*cb is wrapped into takeCb, which is essentially register_callback, waiting for event channel#put, 

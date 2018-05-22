@@ -41,7 +41,7 @@ export default function sagaMiddlewareFactory({ context = {}, ...options } = {})
         sagaMonitor.actionDispatched(action)
       }
       const result = next(action) // hit reducers; Contrary to redux-thunk, redux-saga won't hijack redux flow;
-      channel.put(action); // feed stdChannell using redux actions
+      channel.put(action /*action is the input object*/); // feed stdChannell using redux actions
       return result
     }
   }
