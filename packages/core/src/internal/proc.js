@@ -509,7 +509,7 @@ export default function proc(
     promise.then(cb, error => cb(error, true))
   }
 
- 
+
   function runPutEffect({ channel, action, resolve }, cb /*rest workflow*/) {
     /**
       Schedule the put in case another saga is holding a lock. ???
@@ -569,7 +569,7 @@ export default function proc(
   }
 
   function resolveIterator(iterator, effectId, meta, cb /*contains the rest of workflow*/) {
-    
+
     // you yield Generator(); to create a standalone, free standing main task; tag: saga tasks;
     // this is a blocking operation, the new task is not added to current task's taskQueue, i.e. not a subtask of current task ( in most cases the root task)
     // current workflow is blocked until the new task is terminated and returned;
@@ -599,8 +599,10 @@ export default function proc(
       cb(input)
     }
     try {
-      channel.take(takeCb /*cb is wrapped into takeCb, which is inside a Promise.then, so it's blocking*/,
-        is.notUndef(pattern) ? matcher(pattern) : null)
+      channel.take(takeCb /*cb is wrapped into takeCb, which is essentially register_callback, waiting for event channel#put, 
+                            so it's blocking*/,
+        is.notUndef(pattern)
+          ? matcher(pattern) : null)
     } catch (err) {
       cb(err, true)
       return
