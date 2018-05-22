@@ -1,4 +1,4 @@
-const queue = []
+const queue = [] //
 /**
   Variable to hold a counting semaphore
   - Incrementing adds a lock and puts the scheduler in a `suspended` state (if it's not
@@ -8,7 +8,7 @@ const queue = []
 **/
 let semaphore = 0
 
-/**
+/** internal method; used by flush() only
   Executes a task 'atomically'. Tasks scheduled during this execution will be queued
   and flushed after this task has finished (assuming the scheduler endup in a released
   state).

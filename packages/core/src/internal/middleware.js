@@ -24,9 +24,10 @@ export default function sagaMiddlewareFactory({ context = {}, ...options } = {})
     const channel = stdChannel()
     channel.put = (options.emitter || identity)(channel.put)
 
+    // runSaga is the bootstrap program; core OS; grub2;
     sagaMiddleware.run = runSaga.bind(null, {
       context,
-      channel,
+      channel, // stdChannel
       dispatch,
       getState,
       sagaMonitor,
@@ -39,8 +40,8 @@ export default function sagaMiddlewareFactory({ context = {}, ...options } = {})
       if (sagaMonitor && sagaMonitor.actionDispatched) {
         sagaMonitor.actionDispatched(action)
       }
-      const result = next(action) // hit reducers
-      channel.put(action)
+      const result = next(action) // hit reducers; Contrary to redux-thunk, redux-saga won't hijack redux flow;
+      channel.put(action); // feed stdChannell using redux actions
       return result
     }
   }

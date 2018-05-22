@@ -49,6 +49,7 @@ export function runSaga(options, saga, ...args) {
 
   const middleware = effectMiddlewares && compose(...effectMiddlewares)
 
+  // main task 
   const task = proc(
     iterator,
     channel,

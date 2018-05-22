@@ -71,7 +71,7 @@ export const TASK_CANCEL = {
   - If it completes, the return value is the one returned by the main task
 **/
 function forkQueue(mainTask, onAbort, cb) {
-  let tasks = [],
+  let tasks = [], // how is this queue different from scheduler.queue ? 
     result,
     completed = false
   addTask(mainTask)
@@ -85,7 +85,7 @@ function forkQueue(mainTask, onAbort, cb) {
   }
 
   function addTask(task) {
-    tasks.push(task)
+    tasks.push(task) // push to the end of task queue;  flush() will take the first from the task queue;
     task.cont = (res, isErr) => {
       if (completed) {
         return
@@ -302,11 +302,19 @@ export default function proc(
         // We get CHANNEL_END by taking from a channel that ended using `take` (and not `takem` used to trap End of channels)
         result = is.func(iterator.return) ? iterator.return() : { done: true }
       } else {
-        result = iterator.next(arg)
+
+
+        result = iterator.next(arg) // cal yield and get an Effect, could be put/call/take whatever
+
+
       }
 
+      // In JavaScript an iterator is an object that provides a next() method which returns the next item in the sequence. 
+      // This method returns an object with two properties: done and value.
+      // yield { done: true| false, value: ??? }
       if (!result.done) {
-        digestEffect(result.value, parentEffectId, '', next)
+        // { done:  value:}
+        digestEffect(result.value /*effect POJO*/, parentEffectId, '', next)
       } else {
         /**
           This Generator has ended, terminate the main task and notify the fork queue
@@ -383,10 +391,10 @@ export default function proc(
 
       // declarative effects
       : (data = asEffect.take(effect))          ? runTakeEffect(data, currCb)
-      : (data = asEffect.put(effect))           ? runPutEffect(data, currCb)
+      : (data = asEffect.put(effect))           ? runPutEffect(data, currCb) //non-blocking;
       : (data = asEffect.all(effect))           ? runAllEffect(data, effectId, currCb)
       : (data = asEffect.race(effect))          ? runRaceEffect(data, effectId, currCb)
-      : (data = asEffect.call(effect))          ? runCallEffect(data, effectId, currCb)
+      : (data = asEffect.call(effect))          ? runCallEffect(data, effectId, currCb) //blocking;
       : (data = asEffect.cps(effect))           ? runCPSEffect(data, currCb)
       : (data = asEffect.fork(effect))          ? runForkEffect(data, effectId, currCb)
       : (data = asEffect.join(effect))          ? runJoinEffect(data, currCb)
@@ -395,14 +403,20 @@ export default function proc(
       : (data = asEffect.actionChannel(effect)) ? runChannelEffect(data, currCb)
       : (data = asEffect.flush(effect))         ? runFlushEffect(data, currCb)
       : (data = asEffect.cancelled(effect))     ? runCancelledEffect(data, currCb)
-      : (data = asEffect.getContext(effect))    ? runGetContextEffect(data, currCb)
+      : (data = asEffect.getConxt(effect))    ? runGetContextEffect(data, currCb)
       : (data = asEffect.setContext(effect))    ? runSetContextEffect(data, currCb)
       : /* anything else returned as is */        currCb(effect)
     )
   }
 
-  function digestEffect(effect, parentEffectId, label = '', cb) {
+  function digestEffect(effect /* this will be the yield result (Effect)*/, 
+                        parentEffectId, label = '', 
+                        cb /* this will be Generator.next()*/) {
+    
+    // *********************************************************
+    // assign an auto-incremented id to the current digest;
     const effectId = nextEffectId()
+    // *********************************************************
     sagaMonitor && sagaMonitor.effectTriggered({ effectId, parentEffectId, label, effect })
 
     /**
@@ -412,7 +426,8 @@ export default function proc(
     **/
     let effectSettled
 
-    // Completion callback passed to the appropriate effect runner
+    // Completion callback passed to the appropriate ** effect runner **
+    // bochen : most important function; this will be the then(cb=>{xxx}) in case of blocking effects
     function currCb(res, isErr) {
       if (effectSettled) {
         return
@@ -462,6 +477,7 @@ export default function proc(
       middleware(eff => runEffect(eff, effectId, currCb))(effect)
       return
     }
+
 
     runEffect(effect, effectId, currCb)
   }
@@ -557,11 +573,12 @@ export default function proc(
     }
   }
 
-  function runForkEffect({ context, fn, args, detached }, effectId, cb) {
+  function runForkEffect( /*effect POJO*/{ context, fn /* this is the task */, args, detached }, effectId, cb) {
     const taskIterator = createTaskIterator({ context, fn, args })
     const meta = getIteratorMetaInfo(taskIterator, fn)
     try {
       suspend()
+      //**********  build up a new task, same as the way main task was built, see channel::stdChannel*****************************
       const task = proc(
         taskIterator,
         stdChannel,
@@ -573,6 +590,7 @@ export default function proc(
         meta,
         detached ? null : noop,
       )
+      //**************************************************************************************************************************
 
       if (detached) {
         cb(task)
