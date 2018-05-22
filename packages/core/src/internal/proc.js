@@ -510,9 +510,10 @@ export default function proc(
   }
 
  
-  function runPutEffect({ channel, action, resolve }, cb) {
+  function runPutEffect({ channel, action, resolve }, cb /*rest workflow*/) {
     /**
-      Schedule the put in case another saga is holding a lock.
+      Schedule the put in case another saga is holding a lock. ???
+
       The put will be executed atomically. ie nested puts will execute after
       this put has terminated.
     **/
@@ -612,7 +613,7 @@ export default function proc(
     const taskIterator = createTaskIterator({ context, fn, args })
     const meta = getIteratorMetaInfo(taskIterator, fn)
     try {
-      suspend() //semophor++;
+      suspend() //semanphor++;
       // tag: saga task;
       //**********  fork a sub task, and kick up the generator immediately (note that javascirpt is single threaded)*****************************
       const task = proc(
