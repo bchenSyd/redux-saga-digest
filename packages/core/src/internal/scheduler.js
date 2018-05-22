@@ -6,6 +6,12 @@ const queue = [] //
   - Decrementing releases a lock. Zero locks puts the scheduler in a `released` state. This
     triggers flushing the queued tasks.
 **/
+
+
+// https://github.com/redux-saga/redux-saga/issues/1450#issuecomment-391019782
+/* this behaviour is controlled by semaphore; 
+it makes sure that the asap(callback) callbacks (put effect is one example) 
+always get executed at the end of the entire workflow */
 let semaphore = 0
 
 /** internal method; used by flush() only

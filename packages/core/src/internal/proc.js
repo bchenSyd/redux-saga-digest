@@ -510,13 +510,12 @@ export default function proc(
   }
 
 
-  function runPutEffect({ channel, action, resolve }, cb /*rest workflow*/) {
-    /**
-      Schedule the put in case another saga is holding a lock. ???
 
-      The put will be executed atomically. ie nested puts will execute after
-      this put has terminated.
-    **/
+  function runPutEffect({ channel, action, resolve }, cb /*rest workflow*/) {
+    // https://github.com/redux-saga/redux-saga/issues/1450#issuecomment-391019782
+    /* this behaviour is controlled by semaphore; 
+    it makes sure that the asap(callback) callbacks (put effect is one example) 
+    always get executed at the end of the entire workflow */
     asap(() => {
       let result
       try {
