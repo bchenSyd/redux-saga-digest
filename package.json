@@ -22,7 +22,7 @@
     "docs:watch": "npm run docs:prepare && gitbook serve",
     "docs:publish": "npm run docs:clean && npm run docs:build && cp CNAME _book && touch _book/.nojekyll && gh-pages -d _book -r git@github.com:redux-saga/redux-saga.git -m 'update book' -t",
     "precommit": "lint-staged",
-    "prepush": "npm run check",
+    "prepush": "echo npm run check",
     "bundlesize": "lerna run --parallel bundlesize"
   },
   "repository": {
