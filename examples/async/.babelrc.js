@@ -3,6 +3,9 @@ const { NODE_ENV, BABEL_ENV } = process.env
 const cjs = BABEL_ENV === 'cjs' || NODE_ENV === 'test'
 const prod = NODE_ENV === 'production'
 
+console.log(`*******************  BABEL_ENV= ${BABEL_ENV} **********`);
+
+
 module.exports = {
   presets: [
     [
