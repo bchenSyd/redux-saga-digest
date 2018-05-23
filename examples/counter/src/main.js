@@ -12,7 +12,7 @@ import reducer from './reducers'
 import rootSaga from './sagas'
 
 
-const sagaMiddleware = createSagaMiddleware()
+const sagaMiddleware = createSagaMiddleware( {sagaMonitor} )
 const store = createStore(
   reducer,
   applyMiddleware(sagaMiddleware)

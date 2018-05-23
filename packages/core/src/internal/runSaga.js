@@ -6,12 +6,12 @@ import { stdChannel } from './channel'
 const RUN_SAGA_SIGNATURE = 'runSaga(options, saga, ...args)'
 const NON_GENERATOR_ERR = `${RUN_SAGA_SIGNATURE}: saga argument must be a Generator function!`
 
-export function runSaga(options, saga, ...args) {
+export function runSaga(options, rootGenerator, ...args) {
   if (process.env.NODE_ENV === 'development') {
-    check(saga, is.func, NON_GENERATOR_ERR)
+    check(rootGenerator, is.func, NON_GENERATOR_ERR)
   }
 
-  const iterator = saga(...args)
+  const iterator = rootGenerator(...args)
 
   if (process.env.NODE_ENV === 'development') {
     check(iterator, is.iterator, NON_GENERATOR_ERR)
@@ -28,7 +28,7 @@ export function runSaga(options, saga, ...args) {
     onError,
   } = options
 
-  const effectId = nextSagaId()
+  const effectId = nextSagaId() // always return 1; the root saga;
 
   if (sagaMonitor) {
     // monitors are expected to have a certain interface, let's fill-in any missing ones
@@ -38,7 +38,7 @@ export function runSaga(options, saga, ...args) {
     sagaMonitor.effectCancelled = sagaMonitor.effectCancelled || noop
     sagaMonitor.actionDispatched = sagaMonitor.actionDispatched || noop
 
-    sagaMonitor.effectTriggered({ effectId, root: true, parentEffectId: 0, effect: { root: true, saga, args } })
+    sagaMonitor.effectTriggered({ effectId, root: true, parentEffectId: 0, effect: { root: true, rootGenerator, args } })
   }
 
   if ((process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') && is.notUndef(effectMiddlewares)) {
@@ -58,7 +58,7 @@ export function runSaga(options, saga, ...args) {
     context,
     { sagaMonitor, logger, onError, middleware },
     effectId,
-    getMetaInfo(saga),
+    getMetaInfo(rootGenerator),
   )
 
   if (sagaMonitor) {

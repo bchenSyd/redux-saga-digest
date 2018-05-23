@@ -132,7 +132,8 @@ export const uid = autoInc()
 const kThrow = err => {
   throw err
 }
-const kReturn = value => ({ value, done: true })
+const kReturn = value => ({ value, done: true });
+
 export function makeIterator(next, thro = kThrow, name = 'iterator') {
   const iterator = { meta: { name }, next, throw: thro, return: kReturn, isSagaIterator: true }
 

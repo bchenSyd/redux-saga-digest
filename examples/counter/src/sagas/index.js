@@ -13,6 +13,5 @@ export default function* rootSaga() {
       }),
       put({ type: 'SECOND' })
     ])
-    console.log('done')
   })
 }

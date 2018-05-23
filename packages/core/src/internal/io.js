@@ -220,6 +220,7 @@ export function setContext(props) {
 }
 
 export function takeEvery(patternOrChannel, worker, ...args) {
+  // takeEvery == fork(takeEveryHelper) -> take('action-mornitored') -> fork(worker)
   return fork(takeEveryHelper, patternOrChannel, worker, ...args)
 }
 
