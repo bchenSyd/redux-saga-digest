@@ -9,6 +9,7 @@ export default function* rootSaga() {
     yield all([
       takeEvery('SECOND', function* () {
         yield put({ type: 'THIRD' });
+        console.log('******************THIRD action dispatched...')
       }),
       put({ type: 'SECOND' })
     ])

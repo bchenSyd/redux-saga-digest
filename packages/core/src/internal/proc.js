@@ -424,7 +424,7 @@ export default function proc(
     )
   }
 
-  function digestEffect(effect /* this will be the yield result (Effect)*/,
+  function digestEffect(effectOrPromise /* this will be the yield result (Effect)*/,
     parentEffectId, label = '',
     cb /* this will be Generator.next()*/) {
 
@@ -432,7 +432,7 @@ export default function proc(
     // assign an auto-incremented id to the current digest;
     const effectId = nextEffectId()
     // *********************************************************
-    sagaMonitor && sagaMonitor.effectTriggered({ effectId, parentEffectId, label, effect })
+    sagaMonitor && sagaMonitor.effectTriggered({ effectId, parentEffectId, label, effectOrPromise:effect })
 
     /**
       completion callback and cancel callback are mutually exclusive
@@ -441,6 +441,7 @@ export default function proc(
     **/
     let effectSettled
 
+    
     // Completion callback passed to the appropriate ** effect runner **
     // bochen : most important function; this will be the then(cb=>{xxx}) in case of blocking effects
     function currCb(res, isErr) {
@@ -454,7 +455,7 @@ export default function proc(
         isErr ? sagaMonitor.effectRejected(effectId, res) : sagaMonitor.effectResolved(effectId, res)
       }
       if (isErr) {
-        crashedEffect = effect
+        crashedEffect = effectOrPromise
       }
       cb(res, isErr)
     }
@@ -489,12 +490,12 @@ export default function proc(
     // this potentially could be simplified, finalRunEffect created beforehand
     // and this part of the code wouldnt have to know about middleware stuff
     if (is.func(middleware)) {
-      middleware(eff => runEffect(eff, effectId, currCb))(effect)
+      middleware(eff => runEffect(eff, effectId, currCb))(effectOrPromise)
       return
     }
 
 
-    runEffect(effect, effectId, currCb)
+    runEffect(effectOrPromise, effectId, currCb)
   }
 
   function resolvePromise(promise, cb) {

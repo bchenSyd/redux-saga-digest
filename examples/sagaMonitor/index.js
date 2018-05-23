@@ -37,7 +37,10 @@ const rootEffects = []
 
 function effectTriggered(desc) {
   if (VERBOSE) {
-    console.log('Saga monitor: digestEffect:', desc)
+    const effectObj_keys = Object.keys(desc.effect);
+    const effectname = effectObj_keys.length > 0 ? effectObj_keys[0]: 'Promise';
+    
+    console.log('Saga monitor: digestEffect:', effectname,  desc)
   }
   effectsById[desc.effectId] = Object.assign({},
     desc,
@@ -163,8 +166,8 @@ function consoleGroupEnd() {
   }
 }
 
-function logEffects(topEffects) {
-  topEffects.forEach(logEffectTree)
+function logEffects(topEffectIds) {
+  topEffectIds.forEach(logEffectTree)
 }
 
 function logEffectTree(effectId) {
@@ -395,16 +398,16 @@ function logFormatter() {
   }
 }
 
-const logSaga = (...topEffects) => {
-  if(!topEffects.length) {
-    topEffects = rootEffects
+const logSaga = (...topEffectIds) => {
+  if(!topEffectIds.length) {
+    topEffectIds = rootEffects
   }
   if(!rootEffects.length) {
     console.log(groupPrefix, 'Saga monitor: No effects to log')
   }
   console.log('')
   console.log('Saga monitor:', Date.now(), (new Date()).toISOString())
-  logEffects(topEffects)
+  logEffects(topEffectIds)
   console.log('')
 }
 
